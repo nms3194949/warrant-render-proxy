@@ -1,0 +1,15 @@
+{
+  "name": "render-proxy-server",
+  "version": "1.0.0",
+  "description": "Proxy for Yuanta warrants on Render",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.6.7",
+    "iconv-lite": "^0.6.3"
+  }
+}
