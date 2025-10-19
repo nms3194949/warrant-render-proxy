@@ -1,26 +1,31 @@
 // --- Render 專用的 server.js ---
-// 這是一個完整的 Express 伺服器
+// 【MOMO 修正】 Fullstack 最終版
+// 它會同時託管「前端 (index.html)」和「後端 (API)」
 
 const express = require('express');
 const fetch = require('node-fetch');
 const { URLSearchParams } = require('url');
 const iconv = require('iconv-lite');
-const cors = require('cors'); // 引入 cors 套件
+const path = require('path'); // 【MOMO 新增】 載入 'path' 模組
+
+// (我們不再需要 'cors'，因為是同一個網域)
+// const cors = require('cors'); 
 
 const app = express();
-const PORT = process.env.PORT || 10000; // Render 會透過環境變數 $PORT 告訴您要監聽哪個埠
+const PORT = process.env.PORT || 10000;
 
-// --- CORS 設定 ---
-// 允許來自您 GitHub 網站的請求
-app.use(cors({
-  origin: 'https://nms3194949.github.io'
-}));
+// (不再需要 CORS)
+// app.use(cors({ origin: '...' }));
 
-// --- API 路由 ---
-// Vercel 是 /api/get-warrants-csv，
-// 在 Render 我們可以自訂，例如 /api/get-all-warrants
+// --- 【MOMO 新增】 託管靜態檔案 ---
+// 告訴 Express，我們所有的前端檔案都放在 'public' 資料夾中
+app.use(express.static(path.join(__dirname, 'public')));
+
+// --- 【MOMO 修改】 API 路由 (完全不變) ---
 app.get('/api/get-all-warrants', async (req, res) => {
-    
+
+    req.setTimeout(3540000); // 延長 Node.js 自己的超時
+
     try {
         const payloadObject = {
             format: "CSV",
@@ -32,7 +37,6 @@ app.get('/api/get-all-warrants', async (req, res) => {
                     "FLD_LEVERAGE", "FLD_IV_CLOSE_PRICE", "FLD_OUT_VOL_RATE"
                 ],
                 condition: [
-                    // 【抓取全部資料版】
                     { "field": "FLD_WAR_TYPE", "values": ["1", "2"] }
                 ]
             },
@@ -46,27 +50,33 @@ app.get('/api/get-all-warrants', async (req, res) => {
             body: params,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                'Referer': 'https://www.warrantwin.com.tw/eyuanta/Warrant/Search.aspx'
+                'Referer': 'https://www.warrantwin.com.tw/eyuanta/Warrant/Search.aspx',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
         });
 
         if (!response.ok) {
-            throw new Error(`Yuanta Server Error: ${response.statusText}`);
+            throw new Error(`Yuanta Server Error: ${response.statusText} (Code: ${response.status})`);
         }
 
         const buffer = await response.arrayBuffer();
         const csvData = iconv.decode(Buffer.from(buffer), 'big5');
-        
+
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.status(200).send(csvData);
 
     } catch (error) {
-        console.error(error);
+        console.error(error); // 這會顯示在 Render 日誌中
         res.status(500).send(`Error fetching data from Yuanta: ${error.message}`);
     }
 });
 
-// --- 啟動伺服器 ---
+// --- 【MOMO 新增】 處理所有其他的路由 ---
+// 確保當使用者重新整理頁面時，還是能載入 index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
